@@ -1,0 +1,10 @@
+-- サンプルからデータベースを作成
+`cratebd dvdrental` or `CREATE DATABASE dvdrental;`
+`pg_restore -U postgres -d dvdrental /path/to/dvdrental`
+
+
+-- ユーザの割り当て
+CREATE GROUP beginer;
+GRANT ALL ON DATABASE dvdrental TO beginer;
+
+

@@ -1,0 +1,19 @@
+### incom;letion
+/PostgreSQL/dvdrental/dvdrental.tar
+
+
+### private
+/neovim/_legacy/nvim
+/os
+
+
+### common
+# metadata
+.DS_Store
+# VS-Code
+.vs
+
+# jupyter
+.ipynb_checkpoints
+# Pluto
+*backup [0-9]+.jl
