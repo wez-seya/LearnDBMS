@@ -120,7 +120,7 @@ SELECT version();
 -- コマンド一覧： https://www.postgresql.jp/document/15/html/sql-commands.html
 ;
 /*
-CREATE TABLE : リレーションの作成 
+CREATE TABLE : テーブルの作成 
 属性名とドメインの組として定義される。
 
 1. SQL datatypes : 
@@ -219,7 +219,7 @@ SELECT *
 SELECT city, temp_lo, temp_hi, prcp, date, location
     FROM weather JOIN cities ON city = name;
 
--- （今回は必要ないが、）リレーション間で属性名が重複する場合、属性名を明示的に修飾する。
+-- （今回は必要ないが、）テーブル間で属性名が重複する場合、属性名を明示的に修飾する。
 SELECT weather.city, weather.temp_lo, weather.temp_hi,
        weather.prcp, weather.date, cities.location
     FROM weather JOIN cities ON weather.city = cities.name;
@@ -346,4 +346,101 @@ UPDATE accounts SET balance = balance + 100.00
 COMMIT;
 */;
 
+
+
+/*
+-- ウィンドウ関数：現在の行に関連するテーブル業の集合に渡って計算。グループされずに結果を出力する。
+-- 構文的な特徴：ウィンドウ関数の呼び出しは、OVERによって問い合わせの行の分解を決定する。
+-- PARTITION BY : 行をパーティション（同じ値を共有するグループ）に分割し、それぞれの行に対し
+*/;
+-- 以下の例では、元のデーブルempsalaryから直接得られ、4番目の列は各行（empno）のdepnameにおけるsalaryの平均を出力。
+SELECT depname, empno, salary, avg(salary) OVER (PARTITION BY depname) FROM empsalary;
+
+-- ORDER BYを使用することで、ウィンドウ関数で処理される行の順序を制御する。
+-- 例：パーティション内における順位を、ORDER BYによって生成している。
+SELECT depname, empno, salary,
+       rank() OVER (PARTITION BY depname ORDER BY salary DESC)
+FROM empsalary;
+
+-- ウィンドウフレーム：パーティション内の行の集合。ウィンドウ関数の中には、ウィンドウフレームの行に身に対して作用するものもある。
+/*
+デフォルトのフレーム：
+    * ORDER BYが省略された場合：パーティション内の全ての行を含む。
+    * ORDER BYが指定される場合：パーティションの初めから現在までの行、およびそれより後にあるが，ORDER BY句に従う現在の行と同じ順序になる全ての行
+
+ウィンドウフレームの違いから、ウィンドウ関数の出力結果が異なることに注意する。
+*/;
+-- 例：ORDER BYがない場合。ウィンドウフレームがパーティションと同一であるため、sumはテーブル全体に対して行われる。
+SELECT salary, sum(salary) OVER () FROM empsalary;
+-- 例：ORDER BYがある場合。順序付けられたsalaryにおいて、最初のsalalyの行から，現在の行と重複する行までの値の和を計算している。
+SELECT salary, sum(salary) OVER (ORDER BY salary) FROM empsalary;
+
+/*
+ウィンドウ関数
+    * SELECTリストと，ORDER BY句に限って許可される。
+    * GROUP BY, HAVING, WHERE等の他の場所では禁止されている。
+        * これらの句が処理された後にウィンドウ関数は実行される。
+        * ウィンドウ関数は非ウィンドウ集約関数の後に実行される。
+        ->ウィンドウ関数の引数に、集約関数の呼び出すが有効である。逆は成立しない。
+
+*/
+-- ウィンドウ演算の実行後、行にフィルタ処理を行ったり，グループ化を行う必要が生じた場合、副問い合わせを使用する。
+-- ３より小さいrankを持った内部問い合わせからの行のみの表示。
+SELECT depname, empno, salary, enroll_date
+FROM
+  (SELECT depname, empno, salary, enroll_date,
+          rank() OVER (PARTITION BY depname ORDER BY salary DESC, empno) AS pos
+     FROM empsalary
+  ) AS ss
+WHERE pos < 3;
+
+-- 問い合わせが複数のウィンドウ関数を含む場合、各ウィンドウ関数に異なるOVER句を記述できる。
+-- 複数の関数で同じウィンドウ処理動作が非庁な場合は、WINDOW句でウィンドウ処理動作に名前を付け、OVER内で参照する。
+SELECT sum(salary) OVER w, avg(salary) OVER w
+  FROM empsalary
+  WINDOW w AS (PARTITION BY depname ORDER BY salary DESC);
+
+
+
+
+-- 継承：関連付けられたテーブルから、属性を継承する。一意性制約や外部キーと統合されていない事に注意する。オブジェクト指向データベースの概念。
+;
+/*
+cities（都市）テーブルとcapitals（州都）テーブルを作成する。
+capitalsの値はcitiesにも含まれるため、以下のようなコードが考えられる。
+
+CREATE TABLE capitals (
+  name       text,
+  population real,
+
+  elevation  int,    -- （フィート単位）
+  state      char(2)
+);
+CREATE TABLE non_capitals (
+  name       text,
+  population real,
+
+  elevation  int     -- （フィート単位）
+);
+CREATE VIEW cities AS
+  SELECT name, population, elevation FROM capitals
+    UNION
+  SELECT name, population, elevation FROM non_capitals;
+*/;
+-- INHERITS によって属性を継承する。
+CREATE TABLE cities (
+  name       text,
+  population real,
+
+  elevation  int     -- （フィート単位）
+);
+CREATE TABLE capitals (
+  state      char(2) UNIQUE NOT NULL
+) INHERITS (cities);
+
+
+-- 問い合わせの例。標高500フィート以上の全ての年を求める。
+SELECT name, elevation
+  FROM cities
+  WHERE elevation > 500;
 

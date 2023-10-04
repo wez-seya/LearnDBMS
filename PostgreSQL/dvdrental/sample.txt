@@ -7,4 +7,8 @@
 CREATE GROUP beginer;
 GRANT ALL ON DATABASE dvdrental TO beginer;
 
+---- データベースの情報の取得
+-- リレーションのリスト
+\dt
+\dt+
 
